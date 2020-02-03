@@ -6,4 +6,4 @@ album = "saved"  # put saved , wall or profile .
 
 bot = VkBot.VkBot(token=token)
 
-bot.likes_add_for_person(targets,album)
+bot.start_longpoll()
