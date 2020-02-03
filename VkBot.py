@@ -7,7 +7,7 @@ from vk_api.longpoll import VkLongPoll, VkEventType
 class ClosedPageException(Exception):
     pass
 
-
+__author__ = "Ruthercode"
 class VkBot:
 
     def __init__(self, token):
@@ -16,10 +16,20 @@ class VkBot:
         self.vk = self.session.get_api()
         self.commands = {"лайкай": self.likes_from_bot}
 
-    def likes_from_bot(self, targets, album,count=1000):
+    def likes_from_bot(self, targets, album, count=1000):
+        """Bot send POST request for VK API (Method likes.add)
+        for all user's photos received through the photos.get method
+
+        :arg targets - list of strings (id's)
+        :arg album - string
+        :arg count - int <= 1000
+        :returns 0 when no errors
+        :returns 1 when errors exist"""
         code = 0
         targets = self.vk.users.get(user_ids=targets)
+
         for target in targets:
+
             is_closed = target["is_closed"]
             try:
                 if is_closed:
@@ -48,24 +58,30 @@ class VkBot:
                                       owner_id=target['id'],
                                       item_id=photo['id'])
                 except self.vk.api.exceptions.ApiError:
-                    code = 1
                     print("Error")
+                    return 1
                 else:
                     print("Photo (id: {0}) was liked".format(photo['id']))
+
                 time.sleep(2)
+
             return code
 
-    def say(self, message, identificator, chat):
+    def say(self, message, target, chat):
+        """Send POST request for VK API (messages.send)
+        :arg message - string
+        :arg target - positive int
+        :arg chat - bool. True - choose parameter chat_id, False - choose parameter user_id"""
         random.seed()
-        random_number = random.randint(10000,100000)
+        random_number = random.randint(10000, 100000)
         if chat:
-            self.vk.messages.send(chat_id=identificator,
+            self.vk.messages.send(chat_id=target,
                                   message=message,
-                                  random_id= random_number)
+                                  random_id=random_number)
         else:
-            self.vk.messages.send(user_id=identificator,
+            self.vk.messages.send(user_id=target,
                                   message=message,
-                                  random_id= random_number)
+                                  random_id=random_number)
 
     def start_longpoll(self):
         longpoll = VkLongPoll(self.session)
@@ -80,14 +96,14 @@ class VkBot:
                     count = message[-2]
                     mood = message[-1]
                     targets = message[1:-2]
-                    code = self.commands[command](targets, mood,count)
+                    code = self.commands[command](targets, mood, count)
 
                     if code:
                         message = "Failed"
                     else:
                         message = "Success"
 
-                    if event.from_user:  # Если написали в ЛС
+                    if event.from_user:
                         self.say(message, event.user_id, 0)
-                    elif event.from_chat:  # Если написали в Беседе
+                    elif event.from_chat:
                         self.say(message, event.chat_id, 1)
