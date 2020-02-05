@@ -2,12 +2,20 @@ import vk_api
 import time
 import random
 import requests
-from math import floor
 from vk_api.longpoll import VkLongPoll, VkEventType
 
 
 class ClosedPageException(Exception):
     pass
+
+def bound(num):
+    tmp = num
+    tmp -= tmp//1
+
+    if tmp < 0.5:
+        return int(num//1)
+    else:
+        return int(num//1 + 1)
 
 
 class VkBot:
@@ -16,7 +24,7 @@ class VkBot:
         self.token = token
         self.vk = vk_api.VkApi(token=token).get_api()
         self.commands = {"погода": self.__get_weather,
-                         "помощь": self.__help}  # TODO: add new commands and fix old
+                         "помощь": self.__help}  #TODO: add new commands and fix old
 
     def likes_from_bot(self, target_ids, album, count=1000):
         """Bot send POST request for VK API (Method likes.add)
@@ -79,7 +87,7 @@ class VkBot:
             sity = message[0]
         if message.__len__() > 1:
             country = message[1]
-        url = 'http://api.openweathermap.org/data/2.5/weather'
+        url = 'http://api.openweathermap.org/data/2.5/find'
 
         params = dict(
             q=sity + ',' + country,
@@ -97,9 +105,9 @@ class VkBot:
             return "Город не найден"
 
         weather = {'description': d_weather['weather'][0]['description'],
-                   'temp': floor(d_weather['main']['temp']),
-                   'feels_like': floor(d_weather['main']['feels_like']),
-                   'wind_speed': floor(d_weather['wind']['speed']),
+                   'temp': bound(d_weather['main']['temp']),
+                   'feels_like': bound(d_weather['main']['feels_like']),
+                   'wind_speed': bound(d_weather['wind']['speed']),
                    'wind_deg': d_weather['wind']['deg'],
                    'clouds': d_weather['clouds']['all']}
 
@@ -130,7 +138,7 @@ class VkBot:
     def __help(self, message):
         commands_description = {
             "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну"}
-        # TODO: Переодически обновлять
+        #TODO: Переодически обновлять
 
         response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
                    "Список команд: \n"
