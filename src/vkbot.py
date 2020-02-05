@@ -1,8 +1,7 @@
 import vk_api
 import time
 import random
-import schedule
-import weather
+from src import schedule, weather
 from datetime import datetime, time
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -19,7 +18,7 @@ class VkBot:
         self.__commands = {"погода": weather.get_weather,
                            "расписание" : self.schedule }  # TODO: add new commands and fix old
         self.__groups = {}
-        with open("groups.txt") as infile:  # TODO: пофиксить инициализацию групп (не через текстовик)
+        with open("src/groups.txt") as infile:  # TODO: пофиксить инициализацию групп (не через текстовик)
             pair = infile.read().split()
             for i in range(0, pair.__len__(), 2):
                 self.__groups[pair[i].lower()] = pair[i + 1]
