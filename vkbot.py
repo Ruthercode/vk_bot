@@ -1,8 +1,8 @@
 import vk_api
 import time
 import random
-import requests
 import schedule
+import weather
 from datetime import datetime, time
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -11,71 +11,12 @@ class ClosedPageException(Exception):
     pass
 
 
-def get_weather(message):
-    sity = "taganrog"
-    country = "ru"
-    if message.__len__() > 0:
-        sity = message[:-1]
-    if message.__len__() > 1:
-        country = ' '.join(message[-1:])
-    url = 'http://api.openweathermap.org/data/2.5/find'
-
-    params = dict(
-        q=sity + ',' + country,
-        APPID='2266edad3793720bbd46eea84c35fcfb',
-        units='metric',
-        lang='ru'
-    )
-
-    resp = requests.get(url=url, params=params)
-    d_weather = resp.json()
-
-    print(d_weather)
-
-    if d_weather['cod'] == '404':
-        return "Город не найден"
-
-    bound = lambda num: num % 1 > 0.5 and int(num + 1) or int(num)
-
-    weather = {'description': d_weather["list"][0]['weather'][0]['description'],
-               'temp': bound(d_weather["list"][0]['main']['temp']),
-               'feels_like': bound(d_weather["list"][0]['main']['feels_like']),
-               'wind_speed': bound(d_weather["list"][0]['wind']['speed']),
-               'wind_deg': d_weather["list"][0]['wind']['deg'],
-               'clouds': d_weather["list"][0]['clouds']['all']}
-
-    wind_vector = ""
-    if 180 > weather['wind_deg'] > 0:
-        wind_vector = wind_vector + "С"
-    elif 360 > weather['wind_deg'] > 180:
-        wind_vector = wind_vector + "Ю"
-
-    if 270 > weather['wind_deg'] > 90:
-        wind_vector = wind_vector + "З"
-    elif weather['wind_deg'] != 90 and weather['wind_deg'] != 270:
-        wind_vector = wind_vector + "В"
-    weather['wind_deg'] = wind_vector
-
-    return 'В городе {sity} сейчас {description} \n' \
-           'Температура: {temp}\n' \
-           'Ощущается как {feels_like} \n' \
-           'Ветер {wind_deg}, cкорость {wind_speed}мс  \n' \
-           'Облачность: {clouds}%'.format(sity=d_weather["list"][0]['name'] + ', ' + d_weather["list"][0]['sys']['country'],
-                                          description=weather['description'],
-                                          temp=weather['temp'],
-                                          feels_like=weather['feels_like'],
-                                          wind_deg=weather['wind_deg'],
-                                          wind_speed=weather['wind_speed'],
-                                          clouds=weather['clouds'])
-
-
 class VkBot:
 
     def __init__(self, token):
         self.__token = token
         self.__vk = vk_api.VkApi(token=token).get_api()
-        self.__commands = {"погода": get_weather,
-                           "помощь": self.__help,
+        self.__commands = {"погода": weather.get_weather,
                            "расписание" : self.schedule }  # TODO: add new commands and fix old
         self.__groups = {}
         with open("groups.txt") as infile:  # TODO: пофиксить инициализацию групп (не через текстовик)
@@ -136,10 +77,11 @@ class VkBot:
                                 message=message,
                                 random_id=random_number)
 
-    def __help(self, message):
+    def __help(self):
         commands_description = {
             "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
-            "Расписание %группа%" : "Расписание вашей группы на сегодняшний день"}
+            "Расписание %группа%" : "Расписание вашей группы на сегодняшний день",
+            "Исходный код" : "Ссылка на исходный код бота"}
         # TODO: Переодически обновлять
 
         response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
@@ -178,6 +120,10 @@ class VkBot:
             response = "Да да я"
         elif message[0] in self.__commands.keys():
             response = self.__commands[message[0]](message[1:])
+        elif message[0] == "помощь":
+            response = self.__help()
+        elif message.__len__() == 2 and message[0] == "исходный" and message[1] == "код":
+            response = "https://github.com/Ruthercode/vk_bot"
         else:
             response = "Команда не распознана, используйте команду 'помощь', чтобы узнать список команд"
 
