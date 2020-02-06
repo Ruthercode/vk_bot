@@ -1,0 +1,25 @@
+---
+
+- name: self-name
+  block:
+    - name: change hostname
+      hostname:
+        name: '{{ inventory_hostname }}'
+
+    - name: hosts file
+      lineinfile:
+        path: /etc/hosts
+        state: present
+        line: 127.0.0.1    {{ inventory_hostname_short }}
+
+- name: install repo
+  block:
+
+    - name: clone repo
+      command: git clone https://github.com/Ruthercode/vk_bot.git 
+      become: yes
+    
+    - name: run
+      command: python3 vk_bot/main.py
+      become: yes
+
