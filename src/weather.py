@@ -15,7 +15,7 @@ wind_scale_8 = {0: 'Штиль',
                 None: "Отсутствует"}
 
 
-def sity_search(sity: str):
+async def sity_search(sity: str):
     params = dict(query=sity)
 
     response = requests.get(url=search_url, params=params, headers={
@@ -26,11 +26,10 @@ def sity_search(sity: str):
     if response['meta']['code'] != '200':
         return -1
 
-    print(response)
     return response
 
 
-def get_weather_by_id(id: int) -> str:
+async def get_weather_by_id(id: int) -> str:
     if id == -1:
         return "Ошибка определения города. Погода не определена"
 
@@ -57,19 +56,28 @@ def get_weather_by_id(id: int) -> str:
                                            humidity=response['humidity']['percent'])
 
 
-def get_weather(message: list):
+async def get_weather(message: list):
     if message.__len__() == 0:
         sity = "Таганрог"
     else:
         sity = ' '.join(message)
-    response = sity_search(sity)
+    response = await sity_search(sity)
     try:
         id = response['response']['items'][0]['id']
     except IndexError:
         return "Ошибка определения города. Погода не определена"
 
-    if response['response']['items'][0]['sub_district'] is None:
-        head = "Погода в городе " + response['response']['items'][0]['district']["name"] + ":" + '\n'
-    else:
-        head = "Погода в городе " + response['response']['items'][0]['sub_district']["name"] + ":" + '\n'
-    return head + get_weather_by_id(id)
+    weather_info = await get_weather_by_id(id)
+    print(response)
+    try: # TODO: Fix this
+        if response['response']['items'][0]['sub_district'] == None:
+            head = "Погода в городе " + response['response']['items'][0]['district']["name"] + ":" + '\n'
+        else:
+            head = "Погода в городе " + response['response']['items'][0]['sub_district']["name"] + ":" + '\n'
+    except Exception:
+        if response['response']['items'][0]['subDistrict'] == None:
+            head = "Погода в городе " + response['response']['items'][0]['district']["name"] + ":" + '\n'
+        else:
+            head = "Погода в городе " + response['response']['items'][0]['sub_district']["name"] + ":" + '\n'
+
+    return head + weather_info

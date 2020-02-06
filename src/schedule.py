@@ -3,7 +3,7 @@ import requests
 url = "http://165.22.28.187/schedule-api/"
 
 
-def get_schedule(group, week, day):
+async def get_schedule(group, week, day):
     params = dict(group=group)
     resp = requests.get(url, params)
     if day == 7:
