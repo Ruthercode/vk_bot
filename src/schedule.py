@@ -7,7 +7,7 @@ def get_schedule(group, week, day):
     params = dict(group=group)
     resp = requests.get(url, params)
     if day == 7:
-        return "Воскресенье неучебный день. Можете отдохнуть"
+        return "Воскресенье -  не учебный день. Можете отдохнуть"
     if week not in resp.json()["weeks"]:
         return "Расписание на эту неделю ещё не готово"
 
@@ -22,6 +22,6 @@ def get_schedule(group, week, day):
             answer_list[i] += '-'
         else:
             answer_list[i] += resp['table'][day + 1][i + 1]
-        answer = answer + answer_list[i] + '\n'
+        answer = answer + answer_list[i] + '\n' + '---------------------------------------------------\n'
     return answer
 

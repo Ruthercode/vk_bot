@@ -2,4 +2,4 @@
 
 __author__      = """Pavel Mironchenko"""
 __email__       = "ruthercode@gmail.com"
-__version__     = "0.1"
+__version__     = "0.2"

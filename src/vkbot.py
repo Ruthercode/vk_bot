@@ -91,16 +91,17 @@ class VkBot:
 
         return response
 
+
     def schedule(self, message):
         if message.__len__() == 0:
             message = ["ктбо1-7"]
         group = message[0]
-        resp = "Расписание группы " + group + " на сегоднящний день:\n"
+        t = datetime.now().isocalendar()
+        resp = "Расписание группы " + group + " на {0}.{1}.{2} :\n".format(t[2],t[1],t[0])
         origin = datetime(2020, 2, 3, 0, 0).isocalendar()
         if group not in self.__groups.keys():
             return "Группы не существует"
         group = self.__groups[group]
-        t = datetime.now().isocalendar()
         week = t[1] - origin[1] + 1
         resp = resp + schedule.get_schedule(group, week, t[2] + 1)
         return resp
