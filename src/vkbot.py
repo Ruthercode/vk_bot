@@ -5,22 +5,95 @@ from src import schedule, weather
 from datetime import datetime
 from vk_api.longpoll import VkLongPoll, VkEventType
 import asyncio
+import requests
+
 
 class ClosedPageException(Exception):
     pass
+
 
 # Спустя много дней
 # Порос костылями код
 # Рефакторинг ждёт
 
+class ResponseHandler:
+    template = ''
 
+    def clean_response(self, response):
+        pass
+
+    def return_template(self, response):
+        return self.template.format(*self.clean_response(response))
+
+
+class ScheduleResponseHandler(ResponseHandler):
+    def __init__(self, day):
+        self.template = "1-я 08:00-09:35) {0}\n" \
+                        "2-я 09:50-11:25) {1}\n" \
+                        "3-я 11:55-13:30) {2}\n" \
+                        "4-я 13:45-15:20) {3}\n" \
+                        "5-я 15:50-17:25) {4}\n" \
+                        "6-я 17:40-19:15) {5}\n" \
+                        "7-я 19:30-21:05) {6}"
+        self.day = day
+
+    def clean_response(self, response):
+        response = response['table']['table'][self.day]
+        response.pop(0)
+        return response
+
+
+class Tool:
+    url = ''
+    response_handler = ''
+    params = {}
+
+    def GET_request(self):
+        response = requests.get(url=self.url, params=self.params)
+        return response.json()
+
+    def set_response_handler(self):
+        raise AttributeError('Not Implemented ResponseHandler')
+
+    def get_response(self):
+        return self.response_handler.return_template(self.GET_request())
+
+
+class ScheduleTool(Tool):
+    def __init__(self, group="ктбо1-7"):
+        self.url = "http://165.22.28.187/schedule-api/"
+        with open("src/groups.txt") as file:
+            for line in file:
+                pair = line.lower().split()
+                if group == pair[0]:
+                    group = pair[1]
+                    break
+        self.params = {"group": group,
+                       "week": datetime.now().isocalendar()[1] - datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 2}
+
+    def set_response_handler(self):
+        self.response_handler = ScheduleResponseHandler(datetime.now().isocalendar()[2] + 1)
+
+
+def singleton(cls):
+    instances = {}
+
+    def get_instance():
+        if cls not in instances:
+            instances[cls] = cls()
+        return instances[cls]
+
+    return get_instance
+
+
+@singleton
 class VkBot:
 
     def __init__(self, token):
         self.__token = token
         self.__vk = vk_api.VkApi(token=token).get_api()
         self.__commands = {"погода": weather.get_weather,
-                           "расписание" : self.schedule }  # TODO: add new commands and fix old
+                           "расписание": self.schedule}  # TODO: add new commands and fix old
         self.__groups = {}
         with open("src/groups.txt") as infile:  # TODO: пофиксить инициализацию групп (не через текстовик)
             pair = infile.read().split()
@@ -28,7 +101,7 @@ class VkBot:
                 self.__groups[pair[i].lower()] = pair[i + 1]
 
     @staticmethod
-    def likes_from_bot(target_ids, album,token, count=1000):
+    def likes_from_bot(target_ids, album, token, count=1000):
         """Bot send POST request for VK API (Method likes.add)
         for all user's photos received through the photos.get method
 
@@ -53,9 +126,9 @@ class VkBot:
 
             try:
                 photos = vk.photos.get(owner_id=target['id'],
-                                              album_id=album,
-                                              rev=1,
-                                              count=count)
+                                       album_id=album,
+                                       count=count,
+                                       rev=1)
                 photos = photos["items"]
             except vk_api.exceptions.ApiError:
                 print("{0}'s ( https://vk.com/{1} ) album is closed. Bot has no access".format(target["first_name"],
@@ -65,8 +138,8 @@ class VkBot:
             for photo in photos:
                 try:
                     vk.likes.add(type="photo",
-                                        owner_id=target['id'],
-                                        item_id=photo['id'])
+                                 owner_id=target['id'],
+                                 item_id=photo['id'])
                 except vk.api.exceptions.ApiError:
                     print("Error")
                 else:
@@ -86,8 +159,8 @@ class VkBot:
     def __help(self):
         commands_description = {
             "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
-            "Расписание %группа%" : "Расписание вашей группы на сегодняшний день",
-            "Исходный код" : "Ссылка на исходный код бота"}
+            "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
+            "Исходный код": "Ссылка на исходный код бота"}
         # TODO: Переодически обновлять
 
         response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
@@ -97,7 +170,6 @@ class VkBot:
             response = response + key + ' - ' + commands_description[key] + '\n'
 
         return response
-
 
     async def schedule(self, message):
         if message.__len__() == 0:
