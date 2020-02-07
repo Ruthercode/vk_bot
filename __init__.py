@@ -39,5 +39,5 @@
 # ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓█
 
 __author__      = """Pavel Mironchenko"""
-__email__       = "ruthercode@gmail.com"
-__version__     = "0.3"
+__email__ = "ruthercode@gmail.com"
+__version__ = "0.4"

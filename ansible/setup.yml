@@ -7,13 +7,9 @@
   pre_tasks:
     - name: preinstall packages
       apt:
-        pkg: ['apt-transport-https', 'aptitude', 'mc', 'htop','git','python3-pip']
+        pkg: ['python3.7','python3-pip']
         update_cache: true
     - name: preinstall Python packages
       pip:
         name: vk_api
         executable: pip3
-  roles:
-    - common
-
-

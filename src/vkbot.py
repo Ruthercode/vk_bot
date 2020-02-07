@@ -104,7 +104,7 @@ class VkBot:
             message = ["ктбо1-7"]
         group = message[0]
         t = datetime.now().isocalendar()
-        resp = "Расписание группы " + group + " на {0}.{1}.{2} :\n".format(t[2],t[1],t[0])
+        resp = "Расписание группы " + group + " на {0}.{1}.{2} :\n".format(t[1], (t[2] * 7 + t[1]) // 30, t[0])
         origin = datetime(2020, 2, 10, 0, 0).isocalendar()
         if group not in self.__groups.keys():
             return "Группы не существует"
