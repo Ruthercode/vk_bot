@@ -207,9 +207,8 @@ class VkBot:
                 if is_closed:
                     raise ClosedPageException
             except ClosedPageException:
-                print("{0}'s page ( https://vk.com/{1} ) is closed. Bot has no access".format(target["first_name"],
-                                                                                              target["id"]))
-                continue
+                return "{0}'s page ( https://vk.com/{1} ) is closed. Bot has no access".format(target["first_name"],
+                                                                                               target["id"])
 
             try:
                 photos = vk.photos.get(owner_id=target['id'],
@@ -218,9 +217,8 @@ class VkBot:
                                        rev=1)
                 photos = photos["items"]
             except vk_api.exceptions.ApiError:
-                print("{0}'s ( https://vk.com/{1} ) album is closed. Bot has no access".format(target["first_name"],
-                                                                                               target["id"]))
-                continue
+                return "{0}'s ( https://vk.com/{1} ) album is closed. Bot has no access".format(target["first_name"],
+                                                                                                target["id"])
 
             for photo in photos:
                 try:
@@ -228,11 +226,12 @@ class VkBot:
                                  owner_id=target['id'],
                                  item_id=photo['id'])
                 except vk.api.exceptions.ApiError:
-                    print("Error")
+                    return "Error"
                 else:
                     print("Photo (id: {0}) was liked".format(photo['id']))
 
                 time.sleep(2)
+        return "ok"
 
     def send_message(self, message, send_id):
         """Send POST request for VK API (messages.send)
@@ -243,16 +242,16 @@ class VkBot:
                                 message=message,
                                 random_id=random_number)
 
-    def __command_handler(self, event):  # TODO: refactor
+    def __command_handler(self, event):
         message = event.text.lower().translate(str.maketrans("", "", ".,?!")).split()
 
-        call = message[0]
-        if call.__len__() < 6:
-            return
-        elif call[:6] != "эрнест":
+        try:
+            if message[0][:6] != "эрнест":
+                return
+        except IndexError:
             return
 
-        message = message[1:]
+        message.pop(0)
         if message.__len__() == 0:
             response = "Да-да я"
         elif message[0] == "погода":
@@ -274,19 +273,26 @@ class VkBot:
                 tool = ScheduleTool(' '.join(message))
             tool.set_response_handler()
             response = tool.get_response()
+        elif message[0] == "лайки":
+            message.pop(0)
+            try:
+                response = VkBot.likes_from_bot(target_ids=message[:1], album="profile", token=self.__token)
+            except Exception:
+                response = "Выполнение команды невозможно"
         elif message[0] == "помощь":
             commands_description = {
                 "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
                 "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
-                "Исходный код": "Ссылка на исходный код бота"}
+                "Исходный код": "Ссылка на исходный код бота",
+                "Лайки %ссылка%": "Бот лайкает все фото профиля указанного id"}
             # TODO: Переодически обновлять
 
             response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
                        "Список команд: \n"
-
             for key in commands_description.keys():
-                response = response + key + ' - ' + commands_description[key] + '\n'
-
+                response = response + '------------------------------------\n'
+                response = response + key + ' - ' + commands_description[key] + '\n' \
+ \
         elif message.__len__() == 2 and message[0] == "исходный" and message[1] == "код":
             response = "https://github.com/Ruthercode/vk_bot"
         else:
