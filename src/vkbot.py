@@ -16,6 +16,7 @@ class ClosedPageException(Exception):
 # Порос костылями код
 # Рефакторинг ждёт
 
+# ----------------------------------------------------------------------------------------------------------------------
 class ResponseHandler:
     template = ''
 
@@ -23,7 +24,13 @@ class ResponseHandler:
         pass
 
     def return_template(self, response):
-        return self.template.format(*self.clean_response(response))
+        response = self.clean_response(response)
+        if type(response) == type({}):
+            return self.template.format(**response)
+        elif type(response) == type([]) or type(response) == type(()):
+            return self.template.format(*response)
+        else:
+            return self.template.format(response)
 
 
 class ScheduleResponseHandler(ResponseHandler):
@@ -43,6 +50,49 @@ class ScheduleResponseHandler(ResponseHandler):
         return response
 
 
+class SearchResponseHandler(ResponseHandler):
+    def __init__(self):
+        self.template = '{}'
+
+    def clean_response(self, response):
+        response = int(response['response']['items'][0]['id'])
+        return response
+
+
+class WeatherResponseHandler(ResponseHandler):
+    def __init__(self):
+        self.template = '— {description} \n' \
+                        '— Температура: {temp}\n' \
+                        '— Ощущается как {feels_like} \n' \
+                        '— Ветер {wind}, cкорость {wind_speed}м/с  \n' \
+                        '— Облачность: {clouds}% \n' \
+                        '— Влажность: {humidity}%'
+
+    def clean_response(self, response):
+        response = response['response']
+
+        wind_scale_8 = {0: 'Штиль',
+                        1: 'Северный',
+                        2: 'Северо-восточный',
+                        3: 'Восточный',
+                        4: 'Юго-восточный',
+                        5: 'Южный',
+                        6: 'Юго-западный',
+                        7: 'Западный',
+                        8: 'Северо-западный',
+                        None: "Отсутствует"}
+
+        resp = dict(description=response['description']['full'],
+                    temp=response['temperature']['air']['C'],
+                    feels_like=response['temperature']['comfort']['C'],
+                    wind=wind_scale_8[response['wind']['direction']['scale_8']],
+                    wind_speed=response['wind']['speed']['m_s'],
+                    clouds=response['cloudiness']['percent'],
+                    humidity=response['humidity']['percent'])
+        return resp
+
+
+# ----------------------------------------------------------------------------------------------------------------------
 class Tool:
     url = ''
     response_handler = ''
@@ -75,6 +125,37 @@ class ScheduleTool(Tool):
         self.response_handler = ScheduleResponseHandler(datetime.now().isocalendar()[2] + 1)
 
 
+class SearchTool(Tool):
+    def __init__(self, sity):
+        self.url = 'https://api.gismeteo.net/v2/search/cities/'
+        self.params = dict(query=sity)
+
+    def GET_request(self):
+        response = requests.get(url=self.url,
+                                params=self.params,
+                                headers={'X-Gismeteo-Token': '5c51afc32bfd12.13951840',
+                                         'Accept-Encoding': 'deflate,gzip'})
+        return response.json()
+
+    def set_response_handler(self):
+        self.response_handler = SearchResponseHandler()
+
+
+class WeatherTool(Tool):
+    def __init__(self, id):
+        self.url = 'https://api.gismeteo.net/v2/weather/current/' + str(id) + '/'
+        self.params = {'X-Gismeteo-Token': '5c51afc32bfd12.13951840',
+                       'Accept-Encoding': 'deflate,gzip'}
+
+    def GET_request(self):
+        response = requests.get(url=self.url, headers=self.params)
+        return response.json()
+
+    def set_response_handler(self):
+        self.response_handler = WeatherResponseHandler()
+
+
+# ----------------------------------------------------------------------------------------------------------------------
 def singleton(cls):
     instances = {}
 
@@ -156,7 +237,7 @@ class VkBot:
                                 message=message,
                                 random_id=random_number)
 
-    def __help(self):
+    def __help(self):  # little refactoring
         commands_description = {
             "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
             "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
@@ -171,7 +252,7 @@ class VkBot:
 
         return response
 
-    async def schedule(self, message):
+    async def schedule(self, message):  # TODO: replase with class
         if message.__len__() == 0:
             message = ["ктбо1-7"]
         group = message[0]
@@ -186,7 +267,7 @@ class VkBot:
         resp = resp + await schedule.get_schedule(group, week, t[2] + 1)
         return resp
 
-    async def __command_handler(self, event):
+    async def __command_handler(self, event):  # TODO: refactor
         message = event.text.lower().translate(str.maketrans("", "", ".,?!")).split()
 
         call = message[0]
