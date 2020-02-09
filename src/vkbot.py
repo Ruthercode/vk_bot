@@ -33,24 +33,29 @@ class ResponseHandler:
 
 class ScheduleResponseHandler(ResponseHandler):
     def __init__(self, day):
-        self.template = "1-я 08:00-09:35) {0}\n" \
-                        "2-я 09:50-11:25) {1}\n" \
-                        "3-я 11:55-13:30) {2}\n" \
-                        "4-я 13:45-15:20) {3}\n" \
-                        "5-я 15:50-17:25) {4}\n" \
-                        "6-я 17:40-19:15) {5}\n" \
+        self.template = "1-я 08:00-09:35) {0}\n-------------------------------------------------------\n" \
+                        "2-я 09:50-11:25) {1}\n-------------------------------------------------------\n" \
+                        "3-я 11:55-13:30) {2}\n-------------------------------------------------------\n" \
+                        "4-я 13:45-15:20) {3}\n-------------------------------------------------------\n" \
+                        "5-я 15:50-17:25) {4}\n-------------------------------------------------------\n" \
+                        "6-я 17:40-19:15) {5}\n-------------------------------------------------------\n" \
                         "7-я 19:30-21:05) {6}"
         self.day = day
 
     def clean_response(self, response):
-        if response.__len__() == 0:
-            self.template = "Группы не существует или вы пытаетесь узнать расписание на неучебный день"
-            return {}
         if self.day == 7:
             self.template = "Воскресенье - не учебный день. Можете отдохнуть"
             return {}
-        response = response['table']['table'][self.day]
+        if response.__len__() == 0:
+            self.template = "Группы не существует или вы пытаетесь узнать расписание на неучебный день"
+            return {}
+        response = response['table']['table'][self.day + 1]
         response.pop(0)
+        for i in range(response.__len__()):
+            if response[i]:
+                pass
+            else:
+                response[i] = "-"
         return response
 
 
@@ -132,7 +137,8 @@ class ScheduleTool(Tool):
                     group = pair[1]
                     break
         self.params = {"group": group,
-                       "week": datetime.now().isocalendar()[1] - datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 1}
+                       "week": datetime.now().isocalendar()[1] -
+                               datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 1}
 
     def set_response_handler(self):
         self.response_handler = ScheduleResponseHandler(datetime.now().isocalendar()[2])
@@ -175,12 +181,12 @@ class WeatherTool(Tool):
 #
 #     def get_instance():
 #         if cls not in instances:
-#             instances[cls] = cls()
+#             instances[cls] = cls
 #         return instances[cls]
 #
 #     return get_instance
-
-
+#
+# @singleton
 class VkBot:
 
     def __init__(self, token):
@@ -267,6 +273,7 @@ class VkBot:
             response = tool.get_response()
         elif message[0] == "расписание":
             message.pop(0)
+
             if message.__len__() == 0:
                 tool = ScheduleTool()
             else:
@@ -284,15 +291,14 @@ class VkBot:
                 "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
                 "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
                 "Исходный код": "Ссылка на исходный код бота",
-                "Лайки %ссылка%": "Бот лайкает все фото профиля указанного id"}
+                "Лайки %ссылка%": "Бот лайкает все фото профиля указанного id. (Эрнесто, лайкай pagislav)"}
             # TODO: Переодически обновлять
 
             response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
                        "Список команд: \n"
             for key in commands_description.keys():
                 response = response + '------------------------------------\n'
-                response = response + key + ' - ' + commands_description[key] + '\n' \
- \
+                response = response + key + ' - ' + commands_description[key] + '\n'
         elif message.__len__() == 2 and message[0] == "исходный" and message[1] == "код":
             response = "https://github.com/Ruthercode/vk_bot"
         else:
