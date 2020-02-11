@@ -207,7 +207,7 @@ class VkBot:
         self.__vk = vk_api.VkApi(token=token).get_api()
 
     @staticmethod
-    def likes_from_bot(target_ids, album, token, count=1000):
+    def likes_from_bot(target_ids, album, token, count=50):
         """Bot send POST request for VK API (Method likes.add)
         for all user's photos received through the photos.get method
 
@@ -249,7 +249,7 @@ class VkBot:
                 else:
                     print("Photo (id: {0}) was liked".format(photo['id']))
 
-                time.sleep(2)
+                time.sleep(8)
         return "ok"
 
     def send_message(self, message, send_id):
