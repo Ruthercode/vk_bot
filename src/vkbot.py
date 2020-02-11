@@ -139,9 +139,22 @@ class ScheduleTool(Tool):
         self.params = {"group": group,
                        "week": datetime.now().isocalendar()[1] -
                                datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 1}
+        print(self.params["week"])
 
     def set_response_handler(self):
         self.response_handler = ScheduleResponseHandler(datetime.now().isocalendar()[2])
+
+
+class TomorrowScheduleTool(ScheduleTool):
+    def __init__(self, group="ктбо1-7"):
+        ScheduleTool.__init__(self, group=group)
+        if datetime.now().isocalendar()[2] == 7:
+            self.params["week"] += 1
+
+    def set_response_handler(self):
+        day = (datetime.now().isocalendar()[2] + 1) % 7
+
+        self.response_handler = ScheduleResponseHandler(day=day)
 
 
 class SearchTool(Tool):
@@ -299,8 +312,18 @@ class VkBot:
             for key in commands_description.keys():
                 response = response + '------------------------------------\n'
                 response = response + key + ' - ' + commands_description[key] + '\n'
-        elif message.__len__() == 2 and message[0] == "исходный" and message[1] == "код":
-            response = "https://github.com/Ruthercode/vk_bot"
+        elif message.__len__() >= 2:
+            if message[0] == "исходный" and message[1] == "код":
+                response = "https://github.com/Ruthercode/vk_bot"
+            if message[0] == "завтрашнее" and message[1] == "расписание":
+                message.pop(0)
+                message.pop(0)
+                if message.__len__() == 0:
+                    tool = TomorrowScheduleTool()
+                else:
+                    tool = TomorrowScheduleTool(' '.join(message))
+                tool.set_response_handler()
+                response = tool.get_response()
         else:
             response = "Команда не распознана, используйте команду 'помощь', чтобы узнать список команд"
 
