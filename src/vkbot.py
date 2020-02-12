@@ -281,11 +281,12 @@ class VkBot:
         message = event.text.lower().translate(str.maketrans("", "", ".,?!")).split()
 
         try:
-            if message[0][:6] != "эрнест":
+            if message[0][:6] == "эрнест":
+                message.pop(0)
+            elif event.from_chat:
                 return ""
         except IndexError:
             return ""
-        message.pop(0)
 
         if message.__len__() == 0:
             return "Да-да я"
