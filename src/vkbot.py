@@ -10,12 +10,29 @@ class ClosedPageException(Exception):
     pass
 
 
+commands_description = \
+    {
+        "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
+        # WeatherTool and SearchTool
+        "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
+        # ScheduleTool
+        "Исходный код": "Ссылка на исходный код бота",
+        # No tool command
+        "Завтрашнее расписание %группа%": "Расписание вашей группы на завтрашний день"
+        # TomorrowScheduleTool
+    }  # TODO: Переодически обновлять
+
+groups = {}
+
+
 # Спустя много дней
 # Порос костылями код
 # Рефакторинг ждёт
 
 # ----------------------------------------------------------------------------------------------------------------------
 class ResponseHandler:
+    """Is needed for Tool-based classes.
+:param self.template: representation GET for humans"""
     template = ''
 
     def clean_response(self, response):
@@ -109,6 +126,14 @@ class WeatherResponseHandler(ResponseHandler):
 
 # ----------------------------------------------------------------------------------------------------------------------
 class Tool:
+    """How it works:
+You choose arguments (day,place,group,etc.) and initialise object,
+Depending on the selected class (WeatherTool,ScheduleTool,etc.), you set response handler
+Compute parameters for GET-request and do them, after you choose
+part of response and put this part into the string templates
+:param self.url: - url for GET-request
+:param self.response_handler: - Take response from GET, clean them, put into the template, return template
+:param self.params: dict of arguments for GET"""
     url = ''
     response_handler = ''
     params = {}
@@ -130,30 +155,26 @@ class Tool:
 class ScheduleTool(Tool):
     def __init__(self, group="ктбо1-7"):
         self.url = "http://165.22.28.187/schedule-api/"
-        with open("src/groups.txt") as file:
-            for line in file:
-                pair = line.lower().split()
-                if group == pair[0]:
-                    group = pair[1]
-                    break
+        if group in groups.keys():
+            group = groups[group]
+
         self.params = {"group": group,
                        "week": datetime.now().isocalendar()[1] -
                                datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 1}
-        print(self.params["week"])
+        self.today_date = datetime.now().isocalendar()
 
     def set_response_handler(self):
-        self.response_handler = ScheduleResponseHandler(datetime.now().isocalendar()[2])
+        self.response_handler = ScheduleResponseHandler(self.today_date[2])
 
 
 class TomorrowScheduleTool(ScheduleTool):
     def __init__(self, group="ктбо1-7"):
         ScheduleTool.__init__(self, group=group)
-        if datetime.now().isocalendar()[2] == 7:
+        if self.today_date[2] == 7:
             self.params["week"] += 1
 
     def set_response_handler(self):
-        day = (datetime.now().isocalendar()[2] + 1) % 7
-
+        day = (self.today_date[2] + 1) % 7
         self.response_handler = ScheduleResponseHandler(day=day)
 
 
@@ -189,25 +210,20 @@ class WeatherTool(Tool):
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-# def singleton(cls):
-#     instances = {}
-#
-#     def get_instance():
-#         if cls not in instances:
-#             instances[cls] = cls
-#         return instances[cls]
-#
-#     return get_instance
-#
-# @singleton
+
 class VkBot:
 
     def __init__(self, token):
         self.__token = token
         self.__vk = vk_api.VkApi(token=token).get_api()
+        if groups.__len__() == 0:
+            with open("src/groups.txt") as file:
+                for line in file:
+                    pair = line.lower().split()
+                    groups[pair[0]] = pair[1]
 
     @staticmethod
-    def likes_from_bot(target_ids, album, token, count=1000):
+    def likes_from_bot(target_ids, album, token, count=50):
         """Bot send POST request for VK API (Method likes.add)
         for all user's photos received through the photos.get method
 
@@ -249,7 +265,7 @@ class VkBot:
                 else:
                     print("Photo (id: {0}) was liked".format(photo['id']))
 
-                time.sleep(2)
+                time.sleep(8)
         return "ok"
 
     def send_message(self, message, send_id):
@@ -265,15 +281,17 @@ class VkBot:
         message = event.text.lower().translate(str.maketrans("", "", ".,?!")).split()
 
         try:
-            if message[0][:6] != "эрнест":
-                return
+            if message[0][:6] == "эрнест":
+                message.pop(0)
+            elif event.from_chat:
+                return ""
         except IndexError:
-            return
+            return ""
 
-        message.pop(0)
         if message.__len__() == 0:
-            response = "Да-да я"
-        elif message[0] == "погода":
+            return "Да-да я"
+
+        if message[0] == "погода":
             message.pop(0)
             if message.__len__() == 0:
                 tool = SearchTool()
@@ -283,59 +301,57 @@ class VkBot:
             tool.set_response_handler()
             tool = WeatherTool(tool.get_response())
             tool.set_response_handler()
-            response = tool.get_response()
+            return tool.get_response()
         elif message[0] == "расписание":
             message.pop(0)
 
             if message.__len__() == 0:
                 tool = ScheduleTool()
             else:
-                tool = ScheduleTool(' '.join(message))
+                tool = ScheduleTool(''.join(message))
             tool.set_response_handler()
-            response = tool.get_response()
-        elif message[0] == "лайки":
+            return tool.get_response()
+
+        if message[0] == "лайки":
             message.pop(0)
             try:
-                response = VkBot.likes_from_bot(target_ids=message[:1], album="profile", token=self.__token)
+                VkBot.likes_from_bot(target_ids=message[:1], album="profile", token=self.__token)
+                return message[0] + ' ' + "получил свои лайки "
             except Exception:
-                response = "Выполнение команды невозможно"
-        elif message[0] == "помощь":
-            commands_description = {
-                "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
-                "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
-                "Исходный код": "Ссылка на исходный код бота",
-                "Лайки %ссылка%": "Бот лайкает все фото профиля указанного id. (Эрнесто, лайкай pagislav)",
-                "Завтрашнее расписание %группа%": "Расписание вашей группы на завтрашний день"}
-            # TODO: Переодически обновлять
+                return "Выполнение команды невозможно"
 
+        if message[0] == "помощь":
             response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
                        "Список команд: \n"
             for key in commands_description.keys():
                 response = response + '------------------------------------\n'
                 response = response + key + ' - ' + commands_description[key] + '\n'
-        elif message.__len__() >= 2:
+            return response
+
+        if message.__len__() >= 2:
             if message[0] == "исходный" and message[1] == "код":
-                response = "https://github.com/Ruthercode/vk_bot"
-            if message[0] == "завтрашнее" and message[1] == "расписание":
-                message.pop(0)
-                message.pop(0)
+                return "https://github.com/Ruthercode/vk_bot"
+            elif message[0] == "завтрашнее" and message[1] == "расписание":
+                message = message[2:]
                 if message.__len__() == 0:
                     tool = TomorrowScheduleTool()
                 else:
-                    tool = TomorrowScheduleTool(' '.join(message))
+                    tool = TomorrowScheduleTool(''.join(message))
                 tool.set_response_handler()
-                response = tool.get_response()
-        else:
-            response = "Команда не распознана, используйте команду 'помощь', чтобы узнать список команд"
+                return tool.get_response()
 
-        if event.from_user:
-            self.send_message(response, event.user_id)
-        elif event.from_chat:
-            self.send_message(response, 2000000000 + event.chat_id)
+        return "Команда не распознана, используйте команду 'Эрнесто, помощь', чтобы узнать список команд"
 
     def start_longpoll(self):
         longpoll = VkLongPoll(vk_api.VkApi(token=self.__token))
 
         for event in longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
-                self.__command_handler(event)
+                message = self.__command_handler(event)
+                if not message:
+                    continue
+
+                if event.from_user:
+                    self.send_message(message, event.user_id)
+                elif event.from_chat:
+                    self.send_message(message, 2000000000 + event.chat_id)
