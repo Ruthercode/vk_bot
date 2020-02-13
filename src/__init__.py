@@ -8,7 +8,7 @@ commands_description = \
         # No tool command
         "Завтрашнее расписание %группа%": "Расписание вашей группы на завтрашний день"
         # TomorrowScheduleTool
-    }  # TODO: Переодически обновлять
+    }
 
 groups = {}
 
