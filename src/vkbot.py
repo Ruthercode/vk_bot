@@ -1,214 +1,15 @@
 import vk_api
 import time
 import random
-from datetime import datetime
 from vk_api.longpoll import VkLongPoll, VkEventType
-import requests
-
-
-class ClosedPageException(Exception):
-    pass
-
-
-commands_description = \
-    {
-        "Погода %город%": "Выдаёт информацию о текущей погоде. Можно указать страну",
-        # WeatherTool and SearchTool
-        "Расписание %группа%": "Расписание вашей группы на сегодняшний день",
-        # ScheduleTool
-        "Исходный код": "Ссылка на исходный код бота",
-        # No tool command
-        "Завтрашнее расписание %группа%": "Расписание вашей группы на завтрашний день"
-        # TomorrowScheduleTool
-    }  # TODO: Переодически обновлять
-
-groups = {}
+from src.tools import *
+from src import commands_description
+import re
 
 
 # Спустя много дней
 # Порос костылями код
 # Рефакторинг ждёт
-
-# ----------------------------------------------------------------------------------------------------------------------
-class ResponseHandler:
-    """Is needed for Tool-based classes.
-:param self.template: representation GET for humans"""
-    template = ''
-
-    def clean_response(self, response):
-        pass
-
-    def return_template(self, response):
-        response = self.clean_response(response)
-        if type(response) == type({}):
-            return self.template.format(**response)
-        elif type(response) == type([]) or type(response) == type(()):
-            return self.template.format(*response)
-        else:
-            return self.template.format(response)
-
-
-class ScheduleResponseHandler(ResponseHandler):
-    def __init__(self, day):
-        self.template = "1-я 08:00-09:35) {0}\n-------------------------------------------------------\n" \
-                        "2-я 09:50-11:25) {1}\n-------------------------------------------------------\n" \
-                        "3-я 11:55-13:30) {2}\n-------------------------------------------------------\n" \
-                        "4-я 13:45-15:20) {3}\n-------------------------------------------------------\n" \
-                        "5-я 15:50-17:25) {4}\n-------------------------------------------------------\n" \
-                        "6-я 17:40-19:15) {5}\n-------------------------------------------------------\n" \
-                        "7-я 19:30-21:05) {6}"
-        self.day = day
-
-    def clean_response(self, response):
-        if self.day == 7:
-            self.template = "Воскресенье - не учебный день. Можете отдохнуть"
-            return {}
-        if response.__len__() == 0:
-            self.template = "Группы не существует или вы пытаетесь узнать расписание на неучебный день"
-            return {}
-        response = response['table']['table'][self.day + 1]
-        response.pop(0)
-        for i in range(response.__len__()):
-            if response[i]:
-                pass
-            else:
-                response[i] = "-"
-        return response
-
-
-class SearchResponseHandler(ResponseHandler):
-    def __init__(self):
-        self.template = '{}'
-
-    def clean_response(self, response):
-        if response['response']['items'].__len__():
-            response = int(response['response']['items'][0]['id'])
-        else:
-            response = -1
-        return response
-
-
-class WeatherResponseHandler(ResponseHandler):
-    def __init__(self):
-        self.template = '— {description} \n' \
-                        '— Температура: {temp}\n' \
-                        '— Ощущается как {feels_like} \n' \
-                        '— Ветер {wind}, cкорость {wind_speed}м/с  \n' \
-                        '— Облачность: {clouds}% \n' \
-                        '— Влажность: {humidity}%'
-
-    def clean_response(self, response):
-        if response['meta']['code'] != '200':
-            self.template = "Ошибка определения города. Погода не определена"
-            return {}
-        response = response['response']
-
-        wind_scale_8 = {0: 'Штиль',
-                        1: 'Северный',
-                        2: 'Северо-восточный',
-                        3: 'Восточный',
-                        4: 'Юго-восточный',
-                        5: 'Южный',
-                        6: 'Юго-западный',
-                        7: 'Западный',
-                        8: 'Северо-западный',
-                        None: "Отсутствует"}
-
-        resp = dict(description=response['description']['full'],
-                    temp=response['temperature']['air']['C'],
-                    feels_like=response['temperature']['comfort']['C'],
-                    wind=wind_scale_8[response['wind']['direction']['scale_8']],
-                    wind_speed=response['wind']['speed']['m_s'],
-                    clouds=response['cloudiness']['percent'],
-                    humidity=response['humidity']['percent'])
-        return resp
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-class Tool:
-    """How it works:
-You choose arguments (day,place,group,etc.) and initialise object,
-Depending on the selected class (WeatherTool,ScheduleTool,etc.), you set response handler
-Compute parameters for GET-request and do them, after you choose
-part of response and put this part into the string templates
-:param self.url: - url for GET-request
-:param self.response_handler: - Take response from GET, clean them, put into the template, return template
-:param self.params: dict of arguments for GET"""
-    url = ''
-    response_handler = ''
-    params = {}
-
-    def GET_request(self):
-        response = requests.get(url=self.url, params=self.params)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {}
-
-    def set_response_handler(self):
-        raise AttributeError('Not Implemented ResponseHandler')
-
-    def get_response(self):
-        return self.response_handler.return_template(self.GET_request())
-
-
-class ScheduleTool(Tool):
-    def __init__(self, group="ктбо1-7"):
-        self.url = "http://165.22.28.187/schedule-api/"
-        if group in groups.keys():
-            group = groups[group]
-
-        self.params = {"group": group,
-                       "week": datetime.now().isocalendar()[1] -
-                               datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 1}
-        self.today_date = datetime.now().isocalendar()
-
-    def set_response_handler(self):
-        self.response_handler = ScheduleResponseHandler(self.today_date[2])
-
-
-class TomorrowScheduleTool(ScheduleTool):
-    def __init__(self, group="ктбо1-7"):
-        ScheduleTool.__init__(self, group=group)
-        if self.today_date[2] == 7:
-            self.params["week"] += 1
-
-    def set_response_handler(self):
-        day = (self.today_date[2] + 1) % 7
-        self.response_handler = ScheduleResponseHandler(day=day)
-
-
-class SearchTool(Tool):
-    def __init__(self, sity='таганрог'):
-        self.url = 'https://api.gismeteo.net/v2/search/cities/'
-        self.params = dict(query=sity)
-
-    def GET_request(self):
-        response = requests.get(url=self.url,
-                                params=self.params,
-                                headers={'X-Gismeteo-Token': '5c51afc32bfd12.13951840',
-                                         'Accept-Encoding': 'deflate,gzip'})
-        return response.json()
-
-    def set_response_handler(self):
-        self.response_handler = SearchResponseHandler()
-
-
-class WeatherTool(Tool):
-    def __init__(self, id):
-        self.url = 'https://api.gismeteo.net/v2/weather/current/' + str(id) + '/'
-        self.params = {'X-Gismeteo-Token': '5c51afc32bfd12.13951840',
-                       'Accept-Encoding': 'deflate,gzip'}
-
-    def GET_request(self):
-        response = requests.get(url=self.url, headers=self.params)
-        return response.json()
-
-    def set_response_handler(self):
-        self.response_handler = WeatherResponseHandler()
-
-
-# ----------------------------------------------------------------------------------------------------------------------
 
 
 class VkBot:
@@ -216,20 +17,16 @@ class VkBot:
     def __init__(self, token):
         self.__token = token
         self.__vk = vk_api.VkApi(token=token).get_api()
-        if groups.__len__() == 0:
-            with open("src/groups.txt") as file:
-                for line in file:
-                    pair = line.lower().split()
-                    groups[pair[0]] = pair[1]
 
     @staticmethod
     def likes_from_bot(target_ids, album, token, count=50):
         """Bot send POST request for VK API (Method likes.add)
         for all user's photos received through the photos.get method
 
-        :param targets: list of id's
-        :param album: - string
-        :param count: - int <= 1000
+        :arg target_ids: list of id's
+        :arg album: - wall,saved,profile
+        :arg token: - Your bot's access token. Is need for do something with vk api
+        :arg count: - How many photos require like
         :returns None: """
 
         vk = vk_api.VkApi(token=token).get_api()
@@ -261,7 +58,7 @@ class VkBot:
                                  owner_id=target['id'],
                                  item_id=photo['id'])
                 except vk.api.exceptions.ApiError:
-                    return "Error"
+                    return "Ошибка добавления лайка"
                 else:
                     print("Photo (id: {0}) was liked".format(photo['id']))
 
@@ -269,17 +66,20 @@ class VkBot:
         return "ok"
 
     def send_message(self, message, send_id):
-        """Send POST request for VK API (messages.send)
-        :param message: Text of the message.
-        :param send_id: Destination ID."""
+        """:arg message: Text of the message.
+           :arg send_id: Destination ID.
+           :return: None"""
         random_number = random.randint(10000, 100000)
         self.__vk.messages.send(peer_id=send_id,
                                 message=message,
                                 random_id=random_number)
 
     def __command_handler(self, event):
-        message = event.text.lower().translate(str.maketrans("", "", ".,?!")).split()
+        message = event.text.lower()
+        message = re.sub(',+', ' ', message)
+        message = message.split()
 
+        print(message)
         try:
             if message[0][:6] == "эрнест":
                 message.pop(0)
@@ -321,7 +121,7 @@ class VkBot:
                 return "Выполнение команды невозможно"
 
         if message[0] == "помощь":
-            response = "Все команды начинаются с обращения Эрнест или Эрнесто. \n" \
+            response = "Параметры в процентных обрамлениях не обязательны и имеют значеник по умолчанию \n" \
                        "Список команд: \n"
             for key in commands_description.keys():
                 response = response + '------------------------------------\n'

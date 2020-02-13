@@ -38,6 +38,6 @@
 # ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓█
 # ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓█
 
-__author__      = """Pavel Mironchenko"""
+__author__ = """Pavel Mironchenko"""
 __email__ = "ruthercode@gmail.com"
-__version__ = "0.7"
+__version__ = "0.8"
