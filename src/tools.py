@@ -10,14 +10,16 @@ class ClosedPageException(Exception):
 # ------------------------------------------------------------------------------
 
 
-class ResponseHandler:
+class ResponseHandler(ABC):
     """Is needed for Tool-based classes.
 :param self.template: representation GET for humans"""
     template = ''
 
+    @abstractmethod
     def clean_response(self, response):
         pass
 
+    @abstractmethod
     def return_template(self, response):
         response = self.clean_response(response)
         if type(response) == type({}):
@@ -55,6 +57,9 @@ class ScheduleResponseHandler(ResponseHandler):
                 response[i] = "-"
         return response
 
+    def return_template(self, response):
+        return super().return_template(response)
+
 
 class SearchResponseHandler(ResponseHandler):
     def __init__(self):
@@ -66,6 +71,9 @@ class SearchResponseHandler(ResponseHandler):
         else:
             response = -1
         return response
+
+    def return_template(self, response):
+        return super().return_template(response)
 
 
 class WeatherResponseHandler(ResponseHandler):
@@ -103,11 +111,14 @@ class WeatherResponseHandler(ResponseHandler):
                     humidity=response['humidity']['percent'])
         return resp
 
+    def return_template(self, response):
+        return super().return_template(response)
+
 
 # ------------------------------------------------------------------------------
 
 
-class Tool:
+class Tool(ABC):
     """How it works:
 You choose arguments (day,place,group,etc.) and initialise object,
 Depending on the selected class (WeatherTool,ScheduleTool,etc.), you set response handler
@@ -120,6 +131,8 @@ part of response and put this part into the string templates
     response_handler = ''
     params = {}
     greeting = ""
+
+    @abstractmethod
     def GET_request(self):
         response = requests.get(url=self.url, params=self.params)
         if response.status_code == 200:
@@ -127,9 +140,11 @@ part of response and put this part into the string templates
         else:
             return {}
 
+    @abstractmethod
     def set_response_handler(self):
         raise AttributeError('Not Implemented ResponseHandler')
 
+    @abstractmethod
     def get_response(self):
         return self.response_handler.return_template(self.GET_request())
 
@@ -146,8 +161,15 @@ class ScheduleTool(Tool):
         self.today_date = datetime.now().isocalendar()
 
         self.greeting = "Ваша группа?"
+
     def set_response_handler(self):
         self.response_handler = ScheduleResponseHandler(self.today_date[2])
+
+    def GET_request(self):
+        return super().GET_request()
+
+    def get_response(self):
+        return super().get_response()
 
 
 class TomorrowScheduleTool(ScheduleTool):
@@ -176,6 +198,9 @@ class SearchTool(Tool):
     def set_response_handler(self):
         self.response_handler = SearchResponseHandler()
 
+    def get_response(self):
+        return super().get_response()
+
 
 class WeatherTool(Tool):
     def __init__(self, sity):
@@ -194,3 +219,6 @@ class WeatherTool(Tool):
 
     def set_response_handler(self):
         self.response_handler = WeatherResponseHandler()
+
+    def get_response(self):
+        return super().get_response()
