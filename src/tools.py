@@ -119,7 +119,7 @@ part of response and put this part into the string templates
     url = ''
     response_handler = ''
     params = {}
-
+    greeting = ""
     def GET_request(self):
         response = requests.get(url=self.url, params=self.params)
         if response.status_code == 200:
@@ -145,6 +145,7 @@ class ScheduleTool(Tool):
                                datetime(2020, 2, 10, 0, 0).isocalendar()[1] + 1}
         self.today_date = datetime.now().isocalendar()
 
+        self.greeting = "Ваша группа?"
     def set_response_handler(self):
         self.response_handler = ScheduleResponseHandler(self.today_date[2])
 
@@ -177,10 +178,15 @@ class SearchTool(Tool):
 
 
 class WeatherTool(Tool):
-    def __init__(self, id):
+    def __init__(self, sity):
+        extra_tool = ScheduleTool(sity)
+        extra_tool.set_response_handler()
+        id = extra_tool.get_response()
+
         self.url = 'https://api.gismeteo.net/v2/weather/current/' + str(id) + '/'
         self.params = {'X-Gismeteo-Token': '5c51afc32bfd12.13951840',
                        'Accept-Encoding': 'deflate,gzip'}
+        self.greeting = "Ваш город?"
 
     def GET_request(self):
         response = requests.get(url=self.url, headers=self.params)

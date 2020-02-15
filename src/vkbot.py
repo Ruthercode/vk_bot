@@ -5,7 +5,7 @@ from src.tools import *
 from src import commands_description
 from src import keyboards
 
-import re
+
 import time
 import random
 
@@ -20,6 +20,7 @@ class VkBot:
     def __init__(self, token):
         self.__token = token
         self.__vk = vk_api.VkApi(token=token).get_api()
+        self.command_handler = keyboards.Handler()
 
     @staticmethod
     def likes_from_bot(target_ids, album, token, count=50):
@@ -79,81 +80,17 @@ class VkBot:
                                 keyboard=keyboard)
 
     def __command_handler(self, event):
-        message = event.text.lower()
-        message = re.sub(',+', ' ', message)
-        message = message.split()
+        message = event.text
+        self.command_handler.set_command(message)
+        return self.command_handler.return_answer()
 
-        try:
-            if message[0][:6] == "эрнест":
-                message.pop(0)
-            elif event.from_chat:
-                return ""
-        except IndexError:
-            return ""
 
-        if message.__len__() == 0:
-            return "Да-да я"
-
-        if message[0] == "погода":
-            message.pop(0)
-            if message.__len__() == 0:
-                tool = SearchTool()
-            else:
-                tool = SearchTool(' '.join(message))
-
-            tool.set_response_handler()
-            tool = WeatherTool(tool.get_response())
-            tool.set_response_handler()
-            return tool.get_response()
-        elif message[0] == "расписание":
-            message.pop(0)
-
-            if message.__len__() == 0:
-                tool = ScheduleTool()
-            else:
-                tool = ScheduleTool(''.join(message))
-            tool.set_response_handler()
-            return tool.get_response()
-
-        if message[0] == "лайки":
-            message.pop(0)
-            try:
-                VkBot.likes_from_bot(target_ids=message[:1], album="profile", token=self.__token)
-                return message[0] + ' ' + "получил свои лайки "
-            except Exception:
-                return "Выполнение команды невозможно"
-
-        if message[0] == "помощь":
-            response = "Параметры в процентных обрамлениях не обязательны и имеют значеник по умолчанию \n" \
-                       "Список команд: \n"
-            for key in commands_description.keys():
-                response = response + '------------------------------------\n'
-                response = response + key + ' - ' + commands_description[key] + '\n'
-            return response
-
-        if message.__len__() >= 2:
-            if message[0] == "исходный" and message[1] == "код":
-                return "https://github.com/Ruthercode/vk_bot"
-            elif message[0] == "завтрашнее" and message[1] == "расписание":
-                message = message[2:]
-                if message.__len__() == 0:
-                    tool = TomorrowScheduleTool()
-                else:
-                    tool = TomorrowScheduleTool(''.join(message))
-                tool.set_response_handler()
-                return tool.get_response()
-
-        return "Команда не распознана, используйте команду 'Эрнесто, помощь', чтобы узнать список команд"
 
     def start_longpoll(self):
         longpoll = VkLongPoll(vk_api.VkApi(token=self.__token))
-
         for event in longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
                 message = self.__command_handler(event)
-                key = keyboards.delault_keyboard()
-                if event.from_user:
-                    self.send_message(message, event.user_id, keyboard=key.get_keyboard())
-                elif event.from_chat:
-                    self.send_message(message, 2000000000 + event.chat_id,
-                                      keyboard=keyboards.delault_keyboard().get_keyboard())
+                self.send_message(message,
+                                  event.user_id,
+                                  keyboard=self.command_handler.return_keyboard().get_keyboard())
