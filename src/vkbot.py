@@ -1,10 +1,13 @@
 import vk_api
-import time
-import random
 from vk_api.longpoll import VkLongPoll, VkEventType
+
 from src.tools import *
 from src import commands_description
+from src import keyboards
+
 import re
+import time
+import random
 
 
 # Спустя много дней
@@ -65,21 +68,21 @@ class VkBot:
                 time.sleep(8)
         return "ok"
 
-    def send_message(self, message, send_id):
+    def send_message(self, message, send_id, keyboard=None):
         """:arg message: Text of the message.
            :arg send_id: Destination ID.
            :return: None"""
         random_number = random.randint(10000, 100000)
         self.__vk.messages.send(peer_id=send_id,
                                 message=message,
-                                random_id=random_number)
+                                random_id=random_number,
+                                keyboard=keyboard)
 
     def __command_handler(self, event):
         message = event.text.lower()
         message = re.sub(',+', ' ', message)
         message = message.split()
 
-        print(message)
         try:
             if message[0][:6] == "эрнест":
                 message.pop(0)
@@ -148,10 +151,9 @@ class VkBot:
         for event in longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
                 message = self.__command_handler(event)
-                if not message:
-                    continue
-
+                key = keyboards.delault_keyboard()
                 if event.from_user:
-                    self.send_message(message, event.user_id)
+                    self.send_message(message, event.user_id, keyboard=key.get_keyboard())
                 elif event.from_chat:
-                    self.send_message(message, 2000000000 + event.chat_id)
+                    self.send_message(message, 2000000000 + event.chat_id,
+                                      keyboard=keyboards.delault_keyboard().get_keyboard())
