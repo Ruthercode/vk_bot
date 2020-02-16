@@ -80,8 +80,8 @@ class VkBot:
 
     def __command_handler(self, event):
         message = event.text
-        self.command_handler.set_command(message)
-        return self.command_handler.return_answer()
+        self.command_handler.take_command(message)
+        return self.command_handler.compute_next_step()
 
 
 
@@ -90,12 +90,12 @@ class VkBot:
         for event in longpoll.listen():
             if event.type == VkEventType.MESSAGE_NEW and event.to_me and event.text:
                 message = self.__command_handler(event)
-
-                if self.command_handler.tool == None:
-                    keyboard = self.command_handler.return_keyboard().get_keyboard()
-                else:
-                    keyboard = None
-
+                print(message)
+                keyboard = None
+                if not self.command_handler.current_node.is_tool:
+                    keyboard = self.command_handler.current_node.obj.return_buttons()
+                    if keyboard:
+                        keyboard = keyboard.get_keyboard()
                 self.send_message(message,
                                   event.user_id,
                                   keyboard=keyboard)
